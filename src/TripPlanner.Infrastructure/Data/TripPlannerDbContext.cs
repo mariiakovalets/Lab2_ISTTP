@@ -21,81 +21,46 @@ public class TripPlannerDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // User
-        modelBuilder.Entity<User>(entity =>
-        {
-            entity.HasKey(e => e.UserId);
-            entity.Property(e => e.Username).HasMaxLength(100).IsRequired();
-            entity.Property(e => e.Email).HasMaxLength(150).IsRequired();
-            entity.Property(e => e.PasswordHash).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.Role).HasMaxLength(10);
-        });
+        // Location -> City
+        modelBuilder.Entity<Location>()
+            .HasOne(e => e.City)
+            .WithMany(c => c.Locations)
+            .HasForeignKey(e => e.CityId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-        // City
-        modelBuilder.Entity<City>(entity =>
-        {
-            entity.HasKey(e => e.CityId);
-            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.Category).HasMaxLength(100);
-        });
+        // Trip -> User
+        modelBuilder.Entity<Trip>()
+            .HasOne(e => e.User)
+            .WithMany(u => u.Trips)
+            .HasForeignKey(e => e.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-        // Location
-        modelBuilder.Entity<Location>(entity =>
-        {
-            entity.HasKey(e => e.LocationId);
-            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.Address).HasMaxLength(300);
-            entity.Property(e => e.Category).HasMaxLength(100);
+        // TripLocation -> Trip
+        modelBuilder.Entity<TripLocation>()
+            .HasOne(e => e.Trip)
+            .WithMany(t => t.TripLocations)
+            .HasForeignKey(e => e.TripId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.City)
-                  .WithMany(c => c.Locations)
-                  .HasForeignKey(e => e.CityId)
-                  .OnDelete(DeleteBehavior.Cascade);
-        });
+        // TripLocation -> Location
+        modelBuilder.Entity<TripLocation>()
+            .HasOne(e => e.Location)
+            .WithMany(l => l.TripLocations)
+            .HasForeignKey(e => e.LocationId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-        // Trip
-        modelBuilder.Entity<Trip>(entity =>
-        {
-            entity.HasKey(e => e.TripId);
-            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.Status).HasMaxLength(20);
+        // Review -> User
+        modelBuilder.Entity<Review>()
+            .HasOne(e => e.User)
+            .WithMany(u => u.Reviews)
+            .HasForeignKey(e => e.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.User)
-                  .WithMany(u => u.Trips)
-                  .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // TripLocation
-        modelBuilder.Entity<TripLocation>(entity =>
-        {
-            entity.HasKey(e => e.TripLocationId);
-
-            entity.HasOne(e => e.Trip)
-                  .WithMany(t => t.TripLocations)
-                  .HasForeignKey(e => e.TripId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.Location)
-                  .WithMany(l => l.TripLocations)
-                  .HasForeignKey(e => e.LocationId)
-                  .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // Review
-        modelBuilder.Entity<Review>(entity =>
-        {
-            entity.HasKey(e => e.ReviewId);
-
-            entity.HasOne(e => e.User)
-                  .WithMany(u => u.Reviews)
-                  .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.Location)
-                  .WithMany(l => l.Reviews)
-                  .HasForeignKey(e => e.LocationId)
-                  .OnDelete(DeleteBehavior.Cascade);
-        });
+        // Review -> Location
+        modelBuilder.Entity<Review>()
+            .HasOne(e => e.Location)
+            .WithMany(l => l.Reviews)
+            .HasForeignKey(e => e.LocationId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
