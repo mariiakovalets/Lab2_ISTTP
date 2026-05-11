@@ -17,6 +17,6 @@ public class Trip
     [MaxLength(20)]
     public string Status { get; set; } = "active";
 
-    public virtual User User { get; set; } = null!;
+    public virtual User? User { get; set; }
     public virtual ICollection<TripLocation> TripLocations { get; set; } = new List<TripLocation>();
 }

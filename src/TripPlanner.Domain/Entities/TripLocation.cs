@@ -7,6 +7,6 @@ public class TripLocation
     public int LocationId { get; set; }
     public DateTime? VisitDatetime { get; set; }
 
-    public virtual Trip Trip { get; set; } = null!;
-    public virtual Location Location { get; set; } = null!;
+    public virtual Trip? Trip { get; set; }
+    public virtual Location? Location { get; set; }
 }

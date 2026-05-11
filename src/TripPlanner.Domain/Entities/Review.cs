@@ -8,12 +8,12 @@ public class Review
     public int UserId { get; set; }
     public int LocationId { get; set; }
 
-    [Required]
+ 
     public int Rating { get; set; }
 
     public string? Comment { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public virtual User User { get; set; } = null!;
-    public virtual Location Location { get; set; } = null!;
+    public virtual User? User { get; set; }
+    public virtual Location? Location { get; set; }
 }

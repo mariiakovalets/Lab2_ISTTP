@@ -19,7 +19,7 @@ public class Location
     [MaxLength(100)]
     public string? Category { get; set; }
 
-    public virtual City City { get; set; } = null!;
+    public virtual City? City { get; set; }
     public virtual ICollection<TripLocation> TripLocations { get; set; } = new List<TripLocation>();
     public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
 }
