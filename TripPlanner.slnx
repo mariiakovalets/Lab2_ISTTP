@@ -1,2 +1,5 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TripPlanner.Tests/TripPlanner.Tests.csproj" />
+  </Folder>
 </Solution>

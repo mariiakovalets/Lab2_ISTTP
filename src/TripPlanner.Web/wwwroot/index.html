@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TripPlanner — Планувальник подорожей</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="brand-text">Trip<em>Planner</em></span>
+        </div>
+        <div class="nav-links" id="nav-links"></div>
+        <div class="user-selector">
+            <span class="selector-label">Увійти як:</span>
+            <select id="account-selector" class="account-select">
+                <option value="">Завантаження...</option>
+            </select>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero" id="hero">
+        <div class="hero-content">
+            <p class="hero-subtitle">Відкривай · Плануй · Подорожуй</p>
+            <h1 class="hero-title">Твій персональний<br><em>планувальник подорожей</em></h1>
+            <p class="hero-desc">Створюй маршрути найкращими містами України, зберігай улюблені локації та ділись враженнями.</p>
+        </div>
+    </header>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <!-- CITIES -->
+        <section class="section" id="cities-section">
+            <div class="section-header">
+                <div>
+                    <p class="section-label">Каталог</p>
+                    <h2 class="section-title">Міста</h2>
+                </div>
+                <button class="btn btn-primary admin-only" onclick="openModal('city')">+ Додати місто</button>
+            </div>
+            <div class="cards-grid" id="cities-grid"></div>
+        </section>
+
+        <!-- LOCATIONS -->
+        <section class="section" id="locations-section">
+            <div class="section-header">
+                <div>
+                    <p class="section-label">Цікаві місця</p>
+                    <h2 class="section-title">Локації</h2>
+                </div>
+                <button class="btn btn-primary admin-only" onclick="openModal('location')">+ Додати локацію</button>
+            </div>
+            <div class="filter-bar">
+                <select id="location-city-filter" class="filter-select" onchange="loadLocations()">
+                    <option value="">Усі міста</option>
+                </select>
+                <select id="location-category-filter" class="filter-select" onchange="loadLocations()">
+                    <option value="">Усі категорії</option>
+                </select>
+            </div>
+            <div class="cards-grid" id="locations-grid"></div>
+        </section>
+
+        <!-- TRIPS -->
+        <section class="section" id="trips-section">
+            <div class="section-header">
+                <div>
+                    <p class="section-label">Маршрути</p>
+                    <h2 class="section-title">Мої подорожі</h2>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('trip')">+ Створити подорож</button>
+            </div>
+            <div class="cards-grid" id="trips-grid"></div>
+        </section>
+
+        <!-- MY REVIEWS -->
+        <section class="section" id="reviews-section">
+            <div class="section-header">
+                <div>
+                    <p class="section-label">Враження</p>
+                    <h2 class="section-title">Мої відгуки</h2>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('review')">+ Написати відгук</button>
+            </div>
+            <div class="cards-grid" id="reviews-grid"></div>
+        </section>
+
+        <!-- USERS (admin) -->
+        <section class="section" id="users-section">
+            <div class="section-header">
+                <div>
+                    <p class="section-label">Спільнота</p>
+                    <h2 class="section-title">Користувачі</h2>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('user')">+ Додати користувача</button>
+            </div>
+            <div class="cards-grid" id="users-grid"></div>
+        </section>
+
+        <!-- ALL REVIEWS (admin) -->
+        <section class="section" id="all-reviews-section">
+            <div class="section-header">
+                <div>
+                    <p class="section-label">Модерація</p>
+                    <h2 class="section-title">Усі відгуки</h2>
+                </div>
+            </div>
+            <div class="filter-bar">
+                <select id="review-location-filter" class="filter-select" onchange="loadAllReviews()">
+                    <option value="">Усі локації</option>
+                </select>
+            </div>
+            <div class="cards-grid" id="all-reviews-grid"></div>
+        </section>
+
+    </main>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">Додати</h3>
+                <button class="modal-close" onclick="closeModal()">&#10005;</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p>TripPlanner — Лабораторна робота №2, ІСтаТП</p>
+            <p class="footer-sub">КНУ ім. Тараса Шевченка · 2026</p>
+        </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
