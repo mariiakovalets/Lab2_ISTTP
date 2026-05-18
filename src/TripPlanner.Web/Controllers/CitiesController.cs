@@ -17,7 +17,7 @@ public class CitiesController : ControllerBase
     }
 
     // GET: api/Cities
-    // GET: api/Cities?category=Столиця
+    
     [HttpGet]
     public async Task<ActionResult<IEnumerable<City>>> GetCities([FromQuery] string? category)
     {

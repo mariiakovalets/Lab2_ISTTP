@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TripPlanner.Domain.Entities;
 using TripPlanner.Infrastructure.Data;
+using TripPlanner.Web.DTOs;
 
 namespace TripPlanner.Web.Controllers;
 
@@ -16,19 +17,61 @@ public class UsersController : ControllerBase
         _context = context;
     }
 
-    // GET: api/Users
+// GET: api/Users
     // GET: api/Users?role=admin
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<User>>> GetUsers([FromQuery] string? role)
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers([FromQuery] string? role)
     {
-        var query = _context.Users.AsQueryable();
+        var query = _context.Users
+            .Include(u => u.Trips)
+                .ThenInclude(t => t.TripLocations)
+                    .ThenInclude(tl => tl.Location)
+            .Include(u => u.Reviews)
+                .ThenInclude(r => r.Location)
+            .AsQueryable();
 
         if (!string.IsNullOrEmpty(role))
         {
             query = query.Where(u => u.Role == role);
         }
 
-        return await query.ToListAsync();
+        var users = await query.ToListAsync();
+
+        var result = users.Select(u => new UserDto
+        {
+            UserId = u.UserId,
+            Username = u.Username,
+            Email = u.Email,
+            Role = u.Role,
+            Trips = u.Trips.Select(t => new UserTripDto
+            {
+                TripId = t.TripId,
+                Name = t.Name,
+                Description = t.Description,
+                CreatedAt = t.CreatedAt,
+                Status = t.Status,
+                TripLocations = t.TripLocations.Select(tl => new TripLocationDto
+                {
+                    TripLocationId = tl.TripLocationId,
+                    LocationId = tl.LocationId,
+                    LocationName = tl.Location?.Name ?? "",
+                    LocationAddress = tl.Location?.Address,
+                    LocationCategory = tl.Location?.Category,
+                    VisitDatetime = tl.VisitDatetime
+                }).ToList()
+            }).ToList(),
+            Reviews = u.Reviews.Select(r => new UserReviewDto
+            {
+                ReviewId = r.ReviewId,
+                LocationId = r.LocationId,
+                LocationName = r.Location?.Name ?? "",
+                Rating = r.Rating,
+                Comment = r.Comment,
+                CreatedAt = r.CreatedAt
+            }).ToList()
+        });
+
+        return Ok(result);
     }
 
     // GET: api/Users/5

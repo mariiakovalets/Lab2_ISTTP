@@ -17,7 +17,7 @@ public class LocationsController : ControllerBase
     }
 
     // GET: api/Locations
-    // GET: api/Locations?cityId=1&category=Музей
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Location>>> GetLocations(
         [FromQuery] int? cityId,

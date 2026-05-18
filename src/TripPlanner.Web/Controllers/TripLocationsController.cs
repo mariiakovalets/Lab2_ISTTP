@@ -52,13 +52,13 @@ public class TripLocationsController : ControllerBase
         return tripLocation;
     }
 
-    // POST: api/TripLocations
+// POST: api/TripLocations
     [HttpPost]
     public async Task<ActionResult<TripLocation>> PostTripLocation(TripLocation tripLocation)
     {
         // Перевірка що подорож існує
-        var tripExists = await _context.Trips.AnyAsync(t => t.TripId == tripLocation.TripId);
-        if (!tripExists)
+        var trip = await _context.Trips.FindAsync(tripLocation.TripId);
+        if (trip == null)
         {
             return BadRequest(new { message = $"Подорож з id={tripLocation.TripId} не існує" });
         }
@@ -68,6 +68,12 @@ public class TripLocationsController : ControllerBase
         if (!locationExists)
         {
             return BadRequest(new { message = $"Локацію з id={tripLocation.LocationId} не існує" });
+        }
+
+        // Перевірка що дата візиту не раніше за дату створення подорожі
+        if (tripLocation.VisitDatetime.HasValue && tripLocation.VisitDatetime.Value < trip.CreatedAt)
+        {
+            return BadRequest(new { message = "Дата візиту не може бути раніше за дату створення подорожі" });
         }
 
         // Перевірка що локація ще не додана в цю подорож
