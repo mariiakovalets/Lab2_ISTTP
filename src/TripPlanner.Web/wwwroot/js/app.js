@@ -11,6 +11,17 @@ let cachedUsers = [];
 let cachedLocations = [];
 
 // ============================================
+// SVG Icons (sage green, in-theme)
+// ============================================
+const ICONS = {
+    city: `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--sage-300)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="6" height="14"/><rect x="9" y="3" width="6" height="18"/><rect x="15" y="9" width="6" height="12"/></svg>`,
+    pin:  `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--sage-300)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
+    map:  `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--sage-300)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>`,
+    review:`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--sage-300)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+    user: `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--sage-300)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+};
+
+// ============================================
 // Init
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -167,11 +178,21 @@ function openModal(type, editData = null) {
                     <option value="active" ${editData.status === 'active' ? 'selected' : ''}>Активна</option>
                     <option value="completed" ${editData.status === 'completed' ? 'selected' : ''}>Завершена</option>
                     <option value="cancelled" ${editData.status === 'cancelled' ? 'selected' : ''}>Скасована</option>
-                </select></div>` : ''}
+                </select></div>
+                <div class="form-group">
+                    <div class="trip-edit-locations-header">
+                        <label class="form-label" style="margin-bottom:0">Локації маршруту</label>
+                        <button class="btn btn-secondary btn-sm" onclick="inlineAddTripLocation(${editData.id})">+ Додати</button>
+                    </div>
+                    <div id="trip-edit-locations-list" class="trip-edit-locations-list">
+                        <p class="trip-edit-loading">Завантаження...</p>
+                    </div>
+                </div>` : ''}
                 <div class="form-actions">
                     <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
                     <button class="btn btn-primary" onclick="saveTrip()">${isEdit ? 'Зберегти' : 'Створити'}</button>
                 </div>`;
+            if (isEdit) setTimeout(() => loadTripEditLocations(editData.id), 0);
             break;
         case 'review':
             title.textContent = isEdit ? 'Редагувати відгук' : 'Новий відгук';
@@ -190,27 +211,34 @@ function openModal(type, editData = null) {
                 </div>`;
             break;
         case 'user':
-            title.textContent = isEdit ? 'Редагувати користувача' : 'Новий користувач';
+            const isSelf = isEdit && editData.id === currentUser.userId;
+            const isViewOnly = isEdit && !isSelf;
+            title.textContent = isViewOnly ? 'Перегляд користувача' : (isEdit ? 'Редагувати профіль' : 'Новий користувач');
             html = `
                 <div class="form-group"><label class="form-label">Нікнейм</label>
-                <input class="form-input" id="f-username" value="${isEdit ? editData.username : ''}" placeholder="Нікнейм"></div>
+                <input class="form-input" id="f-username" value="${isEdit ? editData.username : ''}" placeholder="Нікнейм" ${isViewOnly ? 'disabled' : ''}></div>
                 <div class="form-group"><label class="form-label">Email</label>
-                <input class="form-input" id="f-email" type="email" value="${isEdit ? editData.email : ''}" placeholder="email@example.com"></div>
+                <input class="form-input" id="f-email" type="email" value="${isEdit ? editData.email : ''}" placeholder="email@example.com" ${isViewOnly ? 'disabled' : ''}></div>
                 ${!isEdit ? `<div class="form-group"><label class="form-label">Пароль</label>
                 <input class="form-input" id="f-password" type="password" placeholder="Пароль"></div>` : ''}
                 <div class="form-group"><label class="form-label">Роль</label>
-                <select class="form-select" id="f-role">
+                <select class="form-select" id="f-role" ${isViewOnly ? 'disabled' : ''}>
                     <option value="user" ${isEdit && editData.role === 'user' ? 'selected' : ''}>Користувач</option>
                     <option value="admin" ${isEdit && editData.role === 'admin' ? 'selected' : ''}>Адміністратор</option>
                 </select></div>
                 <div class="form-actions">
-                    <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
-                    <button class="btn btn-primary" onclick="saveUser()">${isEdit ? 'Зберегти' : 'Додати'}</button>
+                    <button class="btn btn-secondary" onclick="closeModal()">Закрити</button>
+                    ${!isViewOnly ? `<button class="btn btn-primary" onclick="saveUser()">${isEdit ? 'Зберегти' : 'Додати'}</button>` : ''}
                 </div>`;
             break;
         case 'tripLocation':
             title.textContent = 'Додати локацію в подорож';
             html = `
+                <div class="form-group"><label class="form-label">Місто</label>
+                <select class="form-select" id="f-cityFilter" onchange="filterTripLocationsByCity()">
+                    <option value="">Усі міста</option>
+                    ${cachedCities.map(c => `<option value="${c.cityId}" ${editData && editData.cityId == c.cityId ? 'selected' : ''}>${c.name}</option>`).join('')}
+                </select></div>
                 <div class="form-group"><label class="form-label">Локація</label>
                 <select class="form-select" id="f-locationId">${getLocationOptions()}</select></div>
                 <div class="form-group"><label class="form-label">Дата та час</label>
@@ -219,6 +247,10 @@ function openModal(type, editData = null) {
                     <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
                     <button class="btn btn-primary" onclick="saveTripLocation()">Додати</button>
                 </div>`;
+            // Pre-filter if cityId passed
+            if (editData && editData.cityId) {
+                setTimeout(() => filterTripLocationsByCity(), 0);
+            }
             break;
     }
 
@@ -284,20 +316,20 @@ async function loadCities() {
         const grid = document.getElementById('cities-grid');
         const isAdmin = currentUser && currentUser.role === 'admin';
 
-        if (!cities.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏙️</div><p class="empty-state-text">Міст ще немає</p></div>`; return; }
+        if (!cities.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">${ICONS.city}</div><p class="empty-state-text">Міст ще немає</p></div>`; return; }
 
         grid.innerHTML = cities.map(c => `
-            <div class="card">
+            <div class="card card-clickable" onclick="goToCity(${c.cityId}, event)">
                 ${c.category ? `<span class="card-badge badge-category">${c.category}</span>` : ''}
                 <h3 class="card-title">${c.name}</h3>
                 ${c.description ? `<p class="card-text">${c.description}</p>` : ''}
-                <div class="card-meta"><span class="card-meta-item"><strong>${c.locations ? c.locations.length : 0}</strong> локацій</span></div>
+                <div class="card-meta"><span class="card-meta-item"><strong>${cachedLocations.filter(l => l.cityId === c.cityId).length}</strong> локацій</span></div>
                 ${isAdmin ? `<div class="btn-group">
                     <button class="btn btn-secondary btn-sm" onclick='openModal("city",${JSON.stringify({id:c.cityId,name:c.name,description:c.description,category:c.category})})'>Редагувати</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteCity(${c.cityId})">Видалити</button>
-                </div>` : ''}
+                </div>` : '<p class="card-hint">Натисни щоб переглянути локації →</p>'}
             </div>`).join('');
-    } catch (e) { showToast('Помилка завантаження', true); }
+    } catch (e) { showToast('Не вдалося завантажити міста', true); }
 }
 
 async function saveCity() {
@@ -308,8 +340,8 @@ async function saveCity() {
         if (currentEditId) { data.cityId = currentEditId; res = await fetch(`${API}/Cities/${currentEditId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); }
         else { res = await fetch(`${API}/Cities`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); }
         if (res.ok || res.status === 201 || res.status === 204) { showToast(currentEditId ? 'Місто оновлено' : 'Місто додано'); closeModal(); loadCities(); refreshCache(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка збереження', true); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося зберегти місто', true); }
 }
 
 async function deleteCity(id) {
@@ -317,8 +349,25 @@ async function deleteCity(id) {
     try {
         const res = await fetch(`${API}/Cities/${id}`, { method: 'DELETE' });
         if (res.ok || res.status === 204) { showToast('Видалено'); loadCities(); refreshCache(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка', true); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося видалити місто', true); }
+}
+
+function goToCity(cityId, event) {
+    // Don't navigate if clicked on a button inside the card
+    if (event.target.closest('.btn')) return;
+
+    // Switch to Locations tab
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    const locLink = document.querySelector('.nav-link[data-section="locations"]');
+    if (locLink) locLink.classList.add('active');
+
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('locations-section').classList.add('active');
+
+    // Set city filter and load
+    document.getElementById('location-city-filter').value = cityId;
+    loadLocations();
 }
 
 // ============================================
@@ -343,7 +392,7 @@ async function loadLocations() {
         cs.innerHTML = '<option value="">Усі категорії</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
         cs.value = cv;
 
-        if (!locs.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📍</div><p class="empty-state-text">Локацій не знайдено</p></div>`; return; }
+        if (!locs.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">${ICONS.pin}</div><p class="empty-state-text">Локацій не знайдено</p></div>`; return; }
 
         grid.innerHTML = locs.map(l => `
             <div class="card">
@@ -354,9 +403,11 @@ async function loadLocations() {
                 ${isAdmin ? `<div class="btn-group">
                     <button class="btn btn-secondary btn-sm" onclick='openModal("location",${JSON.stringify({id:l.locationId,cityId:l.cityId,name:l.name,address:l.address,description:l.description,category:l.category})})'>Редагувати</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteLocation(${l.locationId})">Видалити</button>
-                </div>` : ''}
+                </div>` : `<div class="btn-group">
+                    <button class="btn btn-primary btn-sm" onclick="quickAddToTrip(${l.locationId}, ${l.cityId || 'null'})">+ В подорож</button>
+                </div>`}
             </div>`).join('');
-    } catch (e) { showToast('Помилка завантаження', true); }
+    } catch (e) { showToast('Не вдалося завантажити локації', true); }
 }
 
 async function saveLocation() {
@@ -367,8 +418,8 @@ async function saveLocation() {
         if (currentEditId) { data.locationId = currentEditId; res = await fetch(`${API}/Locations/${currentEditId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); }
         else { res = await fetch(`${API}/Locations`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); }
         if (res.ok || res.status === 201 || res.status === 204) { showToast(currentEditId ? 'Оновлено' : 'Додано'); closeModal(); loadLocations(); refreshCache(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка', true); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося зберегти локацію', true); }
 }
 
 async function deleteLocation(id) {
@@ -376,8 +427,51 @@ async function deleteLocation(id) {
     try {
         const res = await fetch(`${API}/Locations/${id}`, { method: 'DELETE' });
         if (res.ok || res.status === 204) { showToast('Видалено'); loadLocations(); refreshCache(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка', true); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося видалити локацію', true); }
+}
+
+async function quickAddToTrip(locationId, cityId) {
+    // Fetch user's trips
+    let trips = [];
+    try {
+        const res = await fetch(`${API}/Trips?userId=${currentUser.userId}`);
+        trips = await res.json();
+    } catch (e) { showToast('Помилка завантаження подорожей', true); return; }
+
+    const activeTrips = trips.filter(t => t.status === 'active');
+    if (!activeTrips.length) {
+        showToast('Спочатку створіть активну подорож', true); return;
+    }
+
+    // Build modal with trip selector + datetime
+    currentEditType = 'quickTripLocation';
+    currentEditId = null;
+    const overlay = document.getElementById('modal-overlay');
+    document.getElementById('modal-title').textContent = 'Додати до подорожі';
+    document.getElementById('modal-body').innerHTML = `
+        <div class="form-group"><label class="form-label">Подорож</label>
+        <select class="form-select" id="f-tripId">
+            ${activeTrips.map(t => `<option value="${t.tripId}">${t.name}</option>`).join('')}
+        </select></div>
+        <div class="form-group"><label class="form-label">Дата та час відвідування</label>
+        <input class="form-input" id="f-visitDatetime" type="datetime-local"></div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Скасувати</button>
+            <button class="btn btn-primary" onclick="saveQuickTripLocation(${locationId})">Додати</button>
+        </div>`;
+    overlay.classList.add('open');
+}
+
+async function saveQuickTripLocation(locationId) {
+    const tripId = parseInt(document.getElementById('f-tripId').value);
+    const dt = document.getElementById('f-visitDatetime').value;
+    const data = { tripId, locationId, visitDatetime: dt ? new Date(dt).toISOString() : null };
+    try {
+        const res = await fetch(`${API}/TripLocations`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        if (res.ok || res.status === 201) { showToast('Локацію додано до подорожі ✓'); closeModal(); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося додати локацію до подорожі', true); }
 }
 
 // ============================================
@@ -389,7 +483,7 @@ async function loadTrips() {
         const trips = await res.json();
         const grid = document.getElementById('trips-grid');
 
-        if (!trips.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🗺️</div><p class="empty-state-text">У вас ще немає подорожей</p></div>`; return; }
+        if (!trips.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">${ICONS.map}</div><p class="empty-state-text">У вас ще немає подорожей</p></div>`; return; }
 
         const tripsData = await Promise.all(trips.map(async t => {
             const tlRes = await fetch(`${API}/TripLocations?tripId=${t.tripId}`);
@@ -419,19 +513,144 @@ async function loadTrips() {
                 </div>
             </div>`;
         }).join('');
-    } catch (e) { showToast('Помилка завантаження', true); }
+    } catch (e) { showToast('Не вдалося завантажити подорожі', true); }
 }
 
-function addLocationToTrip(tripId) { currentEditId = tripId; openModal('tripLocation'); }
+function addLocationToTrip(tripId, cityId = null) {
+    currentEditId = tripId;
+    openModal('tripLocation', cityId ? { cityId } : null);
+}
+
+async function loadTripEditLocations(tripId) {
+    const container = document.getElementById('trip-edit-locations-list');
+    if (!container) return;
+    try {
+        const res = await fetch(`${API}/TripLocations?tripId=${tripId}`);
+        const locs = await res.json();
+        if (!locs.length) {
+            container.innerHTML = `<p class="trip-edit-empty">Локацій ще немає</p>`;
+            return;
+        }
+        container.innerHTML = locs.map(tl => {
+            const locName = tl.location ? tl.location.name : 'Локація #' + tl.locationId;
+            const dtValue = tl.visitDatetime ? new Date(tl.visitDatetime).toISOString().slice(0,16) : '';
+            return `<div class="trip-edit-loc-row" id="tlrow-${tl.tripLocationId}">
+                <div class="trip-edit-loc-name">${locName}</div>
+                <input class="form-input trip-edit-date" type="datetime-local" value="${dtValue}"
+                    onchange="updateTripLocationDate(${tl.tripLocationId}, ${tl.tripId}, ${tl.locationId}, this.value)">
+                <button class="trip-edit-remove" onclick="removeTripLocation(${tl.tripLocationId}, ${tripId})" title="Видалити">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        container.innerHTML = `<p class="trip-edit-empty">Не вдалося завантажити</p>`;
+    }
+}
+
+async function updateTripLocationDate(tripLocationId, tripId, locationId, datetimeValue) {
+    const data = { tripLocationId, tripId, locationId, visitDatetime: datetimeValue ? new Date(datetimeValue).toISOString() : null };
+    try {
+        const res = await fetch(`${API}/TripLocations/${tripLocationId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        if (res.ok || res.status === 204) { showToast('Дату оновлено'); loadTrips(); }
+        else { const err = await res.json(); showToast(err.message || 'Не вдалося оновити дату', true); }
+    } catch (e) { showToast('Не вдалося оновити дату', true); }
+}
+
+async function removeTripLocation(tripLocationId, tripId) {
+    try {
+        const res = await fetch(`${API}/TripLocations/${tripLocationId}`, { method: 'DELETE' });
+        if (res.ok || res.status === 204) {
+            showToast('Локацію видалено з маршруту');
+            loadTripEditLocations(tripId);
+            loadTrips();
+        } else { const err = await res.json(); showToast(err.message || 'Не вдалося видалити', true); }
+    } catch (e) { showToast('Не вдалося видалити', true); }
+}
+
+function inlineAddTripLocation(tripId) {
+    // Save current edit context, open tripLocation modal, on save reload the list
+    const prevId = currentEditId;
+    currentEditId = tripId;
+    // Build inline add form inside the locations list
+    const container = document.getElementById('trip-edit-locations-list');
+    if (!container) return;
+    const addRow = document.createElement('div');
+    addRow.className = 'trip-edit-add-row';
+    addRow.id = 'trip-edit-add-row';
+    addRow.innerHTML = `
+        <select class="form-select trip-edit-add-city" id="inline-city-filter" onchange="inlineFilterLocations()">
+            <option value="">Усі міста</option>
+            ${cachedCities.map(c => `<option value="${c.cityId}">${c.name}</option>`).join('')}
+        </select>
+        <select class="form-select trip-edit-add-loc" id="inline-loc-select">
+            ${cachedLocations.map(l => `<option value="${l.locationId}">${l.name}${l.city ? ' ('+l.city.name+')' : ''}</option>`).join('')}
+        </select>
+        <input class="form-input trip-edit-date" type="datetime-local" id="inline-datetime">
+        <div style="display:flex;gap:0.4rem;margin-top:0.4rem">
+            <button class="btn btn-primary btn-sm" style="flex:1" onclick="confirmInlineAdd(${tripId})">Додати</button>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('trip-edit-add-row').remove()">Скасувати</button>
+        </div>`;
+    // Remove existing add row if present
+    const existing = document.getElementById('trip-edit-add-row');
+    if (existing) existing.remove();
+    container.appendChild(addRow);
+}
+
+function inlineFilterLocations() {
+    const cityId = parseInt(document.getElementById('inline-city-filter').value);
+    const locSel = document.getElementById('inline-loc-select');
+    if (!locSel) return;
+    const filtered = cityId ? cachedLocations.filter(l => l.cityId === cityId) : cachedLocations;
+    locSel.innerHTML = filtered.map(l => `<option value="${l.locationId}">${l.name}</option>`).join('');
+}
+
+async function confirmInlineAdd(tripId) {
+    const locationId = parseInt(document.getElementById('inline-loc-select').value);
+    const dt = document.getElementById('inline-datetime').value;
+    const data = { tripId, locationId, visitDatetime: dt ? new Date(dt).toISOString() : null };
+    try {
+        const res = await fetch(`${API}/TripLocations`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        if (res.ok || res.status === 201) {
+            showToast('Локацію додано');
+            loadTripEditLocations(tripId);
+            loadTrips();
+        } else { const err = await res.json(); showToast(err.message || 'Не вдалося додати', true); }
+    } catch (e) { showToast('Не вдалося додати', true); }
+}
+
+
+function filterTripLocationsByCity() {
+    const cityId = parseInt(document.getElementById('f-cityFilter').value);
+    const locSel = document.getElementById('f-locationId');
+    if (!locSel) return;
+    const filtered = cityId
+        ? cachedLocations.filter(l => l.cityId === cityId)
+        : cachedLocations;
+    locSel.innerHTML = filtered.length
+        ? filtered.map(l => `<option value="${l.locationId}">${l.name}</option>`).join('')
+        : '<option value="">Немає локацій для цього міста</option>';
+}
 
 async function saveTripLocation() {
     const dt = document.getElementById('f-visitDatetime').value;
+
+    // Перевірка: дата не може бути в минулому
+    if (dt && new Date(dt) < new Date()) {
+        showToast('Дата візиту не може бути в минулому', true);
+        return;
+    }
+
     const data = { tripId: currentEditId, locationId: parseInt(document.getElementById('f-locationId').value), visitDatetime: dt ? new Date(dt).toISOString() : null };
     try {
         const res = await fetch(`${API}/TripLocations`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
-        if (res.ok || res.status === 201) { showToast('Локацію додано'); closeModal(); loadTrips(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка', true); }
+        if (res.ok || res.status === 201) { showToast('Локацію додано в подорож'); closeModal(); loadTrips(); }
+        else {
+            const err = await res.json();
+            const msg = err.message || err.title || 'Не вдалося додати локацію';
+            showToast(msg, true);
+        }
+    } catch (e) { showToast('Не вдалося додати локацію', true); }
 }
 
 async function saveTrip() {
@@ -442,8 +661,8 @@ async function saveTrip() {
         if (currentEditId) { data.tripId = currentEditId; res = await fetch(`${API}/Trips/${currentEditId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); }
         else { res = await fetch(`${API}/Trips`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); }
         if (res.ok || res.status === 201 || res.status === 204) { showToast(currentEditId ? 'Оновлено' : 'Створено'); closeModal(); loadTrips(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка', true); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося зберегти подорож', true); }
 }
 
 async function deleteTrip(id) {
@@ -451,8 +670,8 @@ async function deleteTrip(id) {
     try {
         const res = await fetch(`${API}/Trips/${id}`, { method: 'DELETE' });
         if (res.ok || res.status === 204) { showToast('Видалено'); loadTrips(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка', true); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося видалити подорож', true); }
 }
 
 // ============================================
@@ -465,7 +684,7 @@ async function loadReviews() {
         const reviews = all.filter(r => r.userId === currentUser.userId);
         const grid = document.getElementById('reviews-grid');
 
-        if (!reviews.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">💬</div><p class="empty-state-text">У вас ще немає відгуків</p></div>`; return; }
+        if (!reviews.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">${ICONS.review}</div><p class="empty-state-text">У вас ще немає відгуків</p></div>`; return; }
 
         grid.innerHTML = reviews.map(r => `
             <div class="card">
@@ -478,7 +697,7 @@ async function loadReviews() {
                     <button class="btn btn-danger btn-sm" onclick="deleteReview(${r.reviewId})">Видалити</button>
                 </div>
             </div>`).join('');
-    } catch (e) { showToast('Помилка завантаження', true); }
+    } catch (e) { showToast('Не вдалося завантажити відгуки', true); }
 }
 
 async function saveReview() {
@@ -488,8 +707,8 @@ async function saveReview() {
         if (currentEditId) { data.reviewId = currentEditId; res = await fetch(`${API}/Reviews/${currentEditId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); }
         else { res = await fetch(`${API}/Reviews`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); }
         if (res.ok || res.status === 201 || res.status === 204) { showToast(currentEditId ? 'Оновлено' : 'Опубліковано'); closeModal(); loadReviews(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка', true); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося зберегти відгук', true); }
 }
 
 async function deleteReview(id) {
@@ -497,8 +716,8 @@ async function deleteReview(id) {
     try {
         const res = await fetch(`${API}/Reviews/${id}`, { method: 'DELETE' });
         if (res.ok || res.status === 204) { showToast('Видалено'); loadReviews(); loadAllReviews(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка', true); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося видалити відгук', true); }
 }
 
 // ============================================
@@ -514,7 +733,7 @@ async function loadAllReviews() {
         const reviews = await res.json();
         const grid = document.getElementById('all-reviews-grid');
 
-        if (!reviews.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">💬</div><p class="empty-state-text">Відгуків немає</p></div>`; return; }
+        if (!reviews.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">${ICONS.review}</div><p class="empty-state-text">Відгуків немає</p></div>`; return; }
 
         grid.innerHTML = reviews.map(r => `
             <div class="card">
@@ -527,7 +746,7 @@ async function loadAllReviews() {
                     <button class="btn btn-danger btn-sm" onclick="deleteReview(${r.reviewId})">Видалити</button>
                 </div>
             </div>`).join('');
-    } catch (e) { showToast('Помилка завантаження', true); }
+    } catch (e) { showToast('Не вдалося завантажити відгуки', true); }
 }
 
 // ============================================
@@ -539,7 +758,7 @@ async function loadUsers() {
         const users = await res.json();
         const grid = document.getElementById('users-grid');
 
-        if (!users.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👤</div><p class="empty-state-text">Користувачів немає</p></div>`; return; }
+        if (!users.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">${ICONS.user}</div><p class="empty-state-text">Користувачів немає</p></div>`; return; }
 
         grid.innerHTML = users.map(u => `
             <div class="card">
@@ -551,11 +770,11 @@ async function loadUsers() {
                     <div class="stat"><div class="stat-number">${u.reviews ? u.reviews.length : 0}</div><div class="stat-label">Відгуків</div></div>
                 </div>
                 <div class="btn-group">
-                    <button class="btn btn-secondary btn-sm" onclick='openModal("user",${JSON.stringify({id:u.userId,username:u.username,email:u.email,role:u.role})})'>Редагувати</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.userId})">Видалити</button>
+                    <button class="btn btn-secondary btn-sm" onclick='openModal("user",${JSON.stringify({id:u.userId,username:u.username,email:u.email,role:u.role})})'>${u.userId === currentUser.userId ? 'Редагувати' : 'Переглянути'}</button>
+                    ${u.userId !== currentUser.userId ? `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.userId})">Видалити</button>` : ''}
                 </div>
             </div>`).join('');
-    } catch (e) { showToast('Помилка завантаження', true); }
+    } catch (e) { showToast('Не вдалося завантажити користувачів', true); }
 }
 
 async function saveUser() {
@@ -566,8 +785,8 @@ async function saveUser() {
         if (currentEditId) { data.userId = currentEditId; data.passwordHash = 'unchanged'; res = await fetch(`${API}/Users/${currentEditId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); }
         else { const pw = document.getElementById('f-password').value.trim(); if (!pw) { showToast('Введіть пароль', true); return; } data.passwordHash = pw; res = await fetch(`${API}/Users`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) }); }
         if (res.ok || res.status === 201 || res.status === 204) { showToast(currentEditId ? 'Оновлено' : 'Додано'); closeModal(); loadUsers(); refreshCache(); populateAccountSelector(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка', true); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося зберегти користувача', true); }
 }
 
 async function deleteUser(id) {
@@ -575,6 +794,6 @@ async function deleteUser(id) {
     try {
         const res = await fetch(`${API}/Users/${id}`, { method: 'DELETE' });
         if (res.ok || res.status === 204) { showToast('Видалено'); loadUsers(); refreshCache(); }
-        else { const err = await res.json(); showToast(err.message || 'Помилка', true); }
-    } catch (e) { showToast('Помилка', true); }
+        else { const err = await res.json(); showToast(err.message || err.title || 'Помилка', true); }
+    } catch (e) { showToast('Не вдалося видалити користувача', true); }
 }

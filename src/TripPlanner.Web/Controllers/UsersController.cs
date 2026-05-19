@@ -121,62 +121,58 @@ public class UsersController : ControllerBase
         return CreatedAtAction(nameof(GetUser), new { id = user.UserId }, user);
     }
 
-    // PUT: api/Users/5
-    [HttpPut("{id}")]
-    public async Task<IActionResult> PutUser(int id, User user)
+[HttpPut("{id}")]
+public async Task<IActionResult> PutUser(int id, User user)
+{
+    if (id != user.UserId)
     {
-        if (id != user.UserId)
-        {
-            return BadRequest(new { message = "Id в URL не збігається з id в тілі запиту" });
-        }
-
-        // Перевірка унікальності email (крім поточного юзера)
-        var emailDuplicate = await _context.Users
-            .AnyAsync(u => u.Email == user.Email && u.UserId != id);
-        if (emailDuplicate)
-        {
-            return Conflict(new { message = $"Користувач з email '{user.Email}' вже існує" });
-        }
-
-        _context.Entry(user).State = EntityState.Modified;
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await _context.Users.AnyAsync(e => e.UserId == id))
-            {
-                return NotFound(new { message = $"Користувача з id={id} не знайдено" });
-            }
-            throw;
-        }
-
-        return NoContent();
+        return BadRequest(new { message = "Id в URL не збігається з id в тілі запиту" });
     }
 
-    // DELETE: api/Users/5
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteUser(int id)
+    var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.UserId == id);
+    if (existingUser == null)
     {
-        var user = await _context.Users
-            .Include(u => u.Trips)
-            .FirstOrDefaultAsync(u => u.UserId == id);
-
-        if (user == null)
-        {
-            return NotFound(new { message = $"Користувача з id={id} не знайдено" });
-        }
-
-        if (user.Trips.Any(t => t.Status == "active"))
-        {
-            return BadRequest(new { message = "Неможливо видалити користувача з активними подорожами" });
-        }
-
-        _context.Users.Remove(user);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        return NotFound();
     }
+
+    var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.UserId == user.CurrentUserId);
+
+    if (currentUser != null && currentUser.Role == "admin")
+    {
+        // якщо адмін редагує НЕ себе
+        if (currentUser.UserId != id)
+        {
+            user.Username = existingUser.Username;
+            user.Email = existingUser.Email;
+        }
+    }
+
+    existingUser.Username = user.Username;
+    existingUser.Email = user.Email;
+    existingUser.Role = user.Role;
+
+    await _context.SaveChangesAsync();
+
+    return NoContent();
+}
+
+[HttpDelete("{id}")]
+public async Task<IActionResult> DeleteUser(int id)
+{
+    var currentUserId = 1; // тут у тебе зараз імітація авторизації, підстав своє
+    var currentUser = await _context.Users.FindAsync(currentUserId);
+
+    if (currentUser != null && currentUser.Role == "admin" && currentUser.UserId == id)
+    {
+        return BadRequest(new { message = "Адміністратор не може видалити сам себе" });
+    }
+
+    var user = await _context.Users.FindAsync(id);
+    if (user == null) return NotFound();
+
+    _context.Users.Remove(user);
+    await _context.SaveChangesAsync();
+
+    return NoContent();
+}
 }

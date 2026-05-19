@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TripPlanner.Domain.Entities;
 
@@ -20,6 +21,9 @@ public class User
 
     [MaxLength(10)]
     public string Role { get; set; } = "user";
+
+[System.ComponentModel.DataAnnotations.Schema.NotMapped]
+public int CurrentUserId { get; set; }
 
     public virtual ICollection<Trip> Trips { get; set; } = new List<Trip>();
     public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
